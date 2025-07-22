@@ -11,13 +11,33 @@ import torchvision.transforms as T
 import torchvision
 from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
 import json
+from collections import defaultdict
+
 class CocoDetectionFRCNNDataset(Dataset):
     def __init__(self, root, annFile, transforms=None):
         self.root = root  # 图像路径
         self.coco = COCO(annFile)
         print(max(self.coco.getCatIds()) + 1)
+        categories = self.coco.loadCats(self.coco.getCatIds())
+        # 打印类别 ID 和类别名称
+        for category in categories:
+            print(f"类别 ID: {category['id']}, 类别名称: {category['name']}")
+        # 输出每个类别的样本数量
+        self.class_counts = defaultdict(int)
+        
+        # 遍历所有标注，统计每个类别的数量
+        for img_id in self.coco.imgs:
+            ann_ids = self.coco.getAnnIds(imgIds=img_id)
+            anns = self.coco.loadAnns(ann_ids)
+            for ann in anns:
+                self.class_counts[ann['category_id']] += 1
+        
+        # 输出每个类别的数量
+        for cat_id, count in self.class_counts.items():
+            category_name = self.coco.loadCats([cat_id])[0]['name']
+            print(f"类别 {category_name} (ID: {cat_id}) 的样本数量: {count}")
         self.ids = list(sorted(self.coco.imgs.keys()))
-        #self.ids = self.ids[:400]  # 只取前10张图片调试
+        self.ids = self.ids[:400]  # 只取前10张图片调试
 
         self.transforms = transforms
         # 提取所有出现的类别ID
@@ -230,7 +250,7 @@ def create_submission_from_csv(csv_path, image_root, model, output_json_path,
 
 
 if __name__ == "__main__":
-    #train_full_data()
+    train_full_data()
     # 模型和权重加载
     model = get_model(num_classes)
     model.load_state_dict(torch.load("fasterrcnn_cowboy.pth"))
